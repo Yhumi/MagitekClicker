@@ -9,6 +9,8 @@ using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using MagitekClicker.Classes;
 using System.Collections.Generic;
+using Dalamud.Game.Chat;
+using System;
 
 namespace MagitekClicker;
 
@@ -53,17 +55,17 @@ public sealed class Plugin : IDalamudPlugin
         ChatGui.ChatMessage += HandleChatMessage;
     }
 
-    public void HandleChatMessage(XivChatType type, int timestamp, ref SeString senderE, ref SeString message, ref bool isHandled)
+    public void HandleChatMessage(IHandleableChatMessage message)
     {
         if (!Configuration.Enabled) return;
-        if (!Configuration.AllowedChannels.Contains(type)) return;
+        if (!Configuration.AllowedChannels.Contains(message.LogKind)) return;
         if (message == null) return;
 
         foreach(var trigger in Configuration.Triggers)
         {
             if (!trigger.Enabled) continue;
             if (trigger.TriggerPhrases.Count == 0) continue;
-            if (message.ToString().ToLower().Contains(trigger.TriggerPhrases[0].ToLower()))
+            if (message.Message.ToString().ToLower().Contains(trigger.TriggerPhrases[0].ToLower()))
             {
                 if (trigger.AudioIds.Count == 0) continue;
                 string soundId = trigger.AudioIds[0];
