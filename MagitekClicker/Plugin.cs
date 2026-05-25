@@ -58,13 +58,16 @@ public sealed class Plugin : IDalamudPlugin
     public void HandleChatMessage(IHandleableChatMessage message)
     {
         if (!Configuration.Enabled) return;
-        if (!Configuration.AllowedChannels.Contains(message.LogKind)) return;
         if (message == null) return;
 
         foreach(var trigger in Configuration.Triggers)
         {
             if (!trigger.Enabled) continue;
             if (trigger.TriggerPhrases.Count == 0) continue;
+
+            var allowedChannels = trigger.AllowedChannels.Count > 0 ? trigger.AllowedChannels : Configuration.AllowedChannels;
+            if (!allowedChannels.Contains(message.LogKind)) continue;
+
             if (message.Message.ToString().ToLower().Contains(trigger.TriggerPhrases[0].ToLower()))
             {
                 if (trigger.AudioIds.Count == 0) continue;
