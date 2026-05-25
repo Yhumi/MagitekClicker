@@ -212,7 +212,7 @@ public class MainWindow : Window, IDisposable
                     ImGui.SetNextItemWidth(-1);
 
                     string allowedChannelsPreview = 
-                        trigger.AllowedChannels.Count > 1 ? $"{trigger.AllowedChannels.First().ToString()} (+{trigger.AllowedChannels.Count} more)" : 
+                        trigger.AllowedChannels.Count > 1 ? $"{trigger.AllowedChannels.First().ToString()} (+{trigger.AllowedChannels.Count - 1} more)" : 
                         trigger.AllowedChannels.Count == 1 ? trigger.AllowedChannels.First().ToString() : "";
 
                     if (ImGui.BeginCombo($"##trigger-channels{i}", allowedChannelsPreview))
