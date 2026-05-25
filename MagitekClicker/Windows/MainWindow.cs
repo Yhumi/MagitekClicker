@@ -178,6 +178,8 @@ public class MainWindow : Window, IDisposable
 
                     string name = trigger.Name;
 
+                    ImGui.SetNextItemWidth(-1);
+
                     if (ImGui.InputTextWithHint($"##trigger-name{i}", "", ref name, 100))
                     {
                         trigger.Name = name;
@@ -185,6 +187,7 @@ public class MainWindow : Window, IDisposable
                     }
 
                     ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1);
 
                     string phrase = trigger.TriggerPhrases.Count > 0 ? trigger.TriggerPhrases[0] : "";
                     if (ImGui.InputTextWithHint($"##trigger-phrase{i}", "", ref phrase, 100))
@@ -195,6 +198,7 @@ public class MainWindow : Window, IDisposable
                     }
 
                     ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1);
 
                     string sound = trigger.AudioIds.Count > 0 ? trigger.AudioIds[0] : "";
                     if (ImGui.InputTextWithHint($"##trigger-sound{i}", "", ref sound, 100))
@@ -205,6 +209,7 @@ public class MainWindow : Window, IDisposable
                     }
 
                     ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1);
 
                     string allowedChannelsPreview = 
                         trigger.AllowedChannels.Count > 1 ? $"{trigger.AllowedChannels.First().ToString()} (+{trigger.AllowedChannels.Count} more)" : 
@@ -231,6 +236,7 @@ public class MainWindow : Window, IDisposable
                     }
 
                     ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1);
 
                     bool enabled = trigger.Enabled;
                     if(ImGui.Checkbox($"##trigger-enabled{i}", ref enabled))
@@ -240,6 +246,7 @@ public class MainWindow : Window, IDisposable
                     }
 
                     ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1);
 
                     if (ImGui.Button($"Delete##trigger-delete{i}"))
                     {
