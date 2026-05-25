@@ -224,7 +224,7 @@ public class MainWindow : Window, IDisposable
                         var filteredChannels = Enum.GetValues<XivChatType>().OrderBy(chatType => chatType.ToString()).Where(chatType => chatType.ToString().Contains(Search, StringComparison.OrdinalIgnoreCase));
                         foreach (var channelType in filteredChannels) 
                         {
-                            if(ImGui.Selectable(channelType.ToString(), trigger.AllowedChannels.Contains(channelType)))
+                            if(ImGui.Selectable(channelType.ToString(), trigger.AllowedChannels.Contains(channelType), ImGuiSelectableFlags.DontClosePopups))
                             {
                                 if (trigger.AllowedChannels.Contains(channelType)) trigger.AllowedChannels.Remove(channelType);
                                 else trigger.AllowedChannels.Add(channelType);
