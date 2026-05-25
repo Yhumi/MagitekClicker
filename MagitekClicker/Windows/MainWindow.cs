@@ -78,7 +78,6 @@ public class MainWindow : Window, IDisposable
             ImGui.TextWrapped("Planned future features:");
             ImGui.TextWrapped(" - Support for more audio formats (.ogg, etc)");
             ImGui.TextWrapped(" - Restrict phrases to specific players or groups of players");
-            ImGui.TextWrapped(" - Assign more than one sound to a phrase and choose one at random");
 
             ImGui.EndTabItem();
         }
