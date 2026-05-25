@@ -1,6 +1,3 @@
-using System;
-using System.Linq;
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Internal;
@@ -9,6 +6,10 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using Lumina.Excel.Sheets;
 using MagitekClicker.Classes;
+using System;
+using System.Linq;
+using System.Numerics;
+using static FFXIVClientStructs.FFXIV.Component.GUI.AtkValue.Delegates;
 
 namespace MagitekClicker.Windows;
 
@@ -17,7 +18,8 @@ public class MainWindow : Window, IDisposable
     private Configuration Configuration;
     private Plugin Plugin;
 
-    private string Search = string.Empty;
+    private string SoundSearch = string.Empty;
+    private string ChannelSearch = string.Empty;
 
     // We give this window a hidden ID using ##
     // So that the user will see "My Amazing Window" as window title,
@@ -76,7 +78,6 @@ public class MainWindow : Window, IDisposable
             ImGui.TextWrapped("Planned future features:");
             ImGui.TextWrapped(" - Support for more audio formats (.ogg, etc)");
             ImGui.TextWrapped(" - Restrict phrases to specific players or groups of players");
-            ImGui.TextWrapped(" - Assign more than one sound to a phrase and choose one at random");
 
             ImGui.EndTabItem();
         }
@@ -98,9 +99,9 @@ public class MainWindow : Window, IDisposable
             }
             if (ImGui.BeginTable("##Sounds", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
             {
-                ImGui.TableSetupColumn("Name");
-                ImGui.TableSetupColumn("Path");
-                ImGui.TableSetupColumn("Delete");
+                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 2);
+                ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthStretch, 4);
+                ImGui.TableSetupColumn("Delete", ImGuiTableColumnFlags.WidthStretch, 1);
                 ImGui.TableHeadersRow();
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
@@ -111,6 +112,8 @@ public class MainWindow : Window, IDisposable
 
                     string name = audioFile.Name;
 
+                    ImGui.SetNextItemWidth(-1);
+
                     if (ImGui.InputTextWithHint($"##sound-name{i}", "", ref name, 100))
                     {
                         audioFile.Name = name;
@@ -118,6 +121,7 @@ public class MainWindow : Window, IDisposable
                     }
 
                     ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1);
 
                     string path = audioFile.Path;
                     if (ImGui.InputTextWithHint($"##sound-path{i}", "", ref path, 100))
@@ -127,8 +131,9 @@ public class MainWindow : Window, IDisposable
                     }
 
                     ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(-1);
 
-                    if(ImGui.Button($"Delete##sound-delete{i}"))
+                    if (ImGui.Button($"Delete##sound-delete{i}"))
                     {
                         Configuration.AudioFiles.RemoveAt(i);
                         Configuration.Save();
@@ -163,9 +168,9 @@ public class MainWindow : Window, IDisposable
             if (ImGui.BeginTable("##Triggers", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
             {
                 ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 2);
-                ImGui.TableSetupColumn("Phrase", ImGuiTableColumnFlags.WidthStretch, 2);
-                ImGui.TableSetupColumn("Sound", ImGuiTableColumnFlags.WidthStretch, 2);
-                ImGui.TableSetupColumn("Channels", ImGuiTableColumnFlags.WidthStretch, 3);
+                ImGui.TableSetupColumn("Phrase", ImGuiTableColumnFlags.WidthStretch, 3);
+                ImGui.TableSetupColumn("Sound", ImGuiTableColumnFlags.WidthStretch, 4);
+                ImGui.TableSetupColumn("Channels", ImGuiTableColumnFlags.WidthStretch, 4);
                 ImGui.TableSetupColumn("Enabled", ImGuiTableColumnFlags.WidthStretch, 1);
                 ImGui.TableSetupColumn("Delete", ImGuiTableColumnFlags.WidthStretch, 1);
                 ImGui.TableHeadersRow();
@@ -200,12 +205,28 @@ public class MainWindow : Window, IDisposable
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(-1);
 
-                    string sound = trigger.AudioIds.Count > 0 ? trigger.AudioIds[0] : "";
-                    if (ImGui.InputTextWithHint($"##trigger-sound{i}", "", ref sound, 100))
+                    string selectedSoundsPreview =
+                        trigger.AudioIds.Count > 1 ? $"{trigger.AudioIds.First()} (+{trigger.AudioIds.Count - 1} more)" :
+                        trigger.AudioIds.Count == 1 ? trigger.AudioIds.First() : "";
+
+                    if (ImGui.BeginCombo($"##trigger-sound{i}", selectedSoundsPreview))
                     {
-                        if (trigger.AudioIds.Count == 0) trigger.AudioIds.Add(sound);
-                        else trigger.AudioIds[0] = sound;
-                        Configuration.Save();
+                        ImGui.Text("Search");
+                        ImGui.SameLine();
+                        ImGui.InputText($"##trigger-soundSearch{i}", ref SoundSearch, 100);
+
+                        var filteredSounds = Configuration.AudioFiles.OrderBy(audioFile => audioFile.Name).Where(audioFile => audioFile.Name.ToString().Contains(SoundSearch, StringComparison.OrdinalIgnoreCase));
+                        foreach (var audioFile in filteredSounds)
+                        {
+                            if (ImGui.Selectable(audioFile.Name.ToString(), trigger.AudioIds.Contains(audioFile.Name), ImGuiSelectableFlags.DontClosePopups))
+                            {
+                                if (trigger.AudioIds.Contains(audioFile.Name)) trigger.AudioIds.Remove(audioFile.Name);
+                                else trigger.AudioIds.Add(audioFile.Name);
+                                Configuration.Save();
+                            }
+                        }
+
+                        ImGui.EndCombo();
                     }
 
                     ImGui.TableNextColumn();
@@ -219,9 +240,9 @@ public class MainWindow : Window, IDisposable
                     {
                         ImGui.Text("Search");
                         ImGui.SameLine();
-                        ImGui.InputText($"##trigger-channelsSearch{i}", ref Search, 100);
+                        ImGui.InputText($"##trigger-channelsSearch{i}", ref ChannelSearch, 100);
 
-                        var filteredChannels = Enum.GetValues<XivChatType>().OrderBy(chatType => chatType.ToString()).Where(chatType => chatType.ToString().Contains(Search, StringComparison.OrdinalIgnoreCase));
+                        var filteredChannels = Enum.GetValues<XivChatType>().OrderBy(chatType => chatType.ToString()).Where(chatType => chatType.ToString().Contains(ChannelSearch, StringComparison.OrdinalIgnoreCase));
                         foreach (var channelType in filteredChannels) 
                         {
                             if(ImGui.Selectable(channelType.ToString(), trigger.AllowedChannels.Contains(channelType), ImGuiSelectableFlags.DontClosePopups))
