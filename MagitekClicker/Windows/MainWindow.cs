@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
@@ -15,6 +16,8 @@ public class MainWindow : Window, IDisposable
 {
     private Configuration Configuration;
     private Plugin Plugin;
+
+    private string Search = string.Empty;
 
     // We give this window a hidden ID using ##
     // So that the user will see "My Amazing Window" as window title,
@@ -148,6 +151,7 @@ public class MainWindow : Window, IDisposable
         if (ImGui.BeginTabItem("Triggers"))
         {
             ImGui.TextWrapped("Add trigger phrases below and the sound they should correspond to - use the name given to the sound in the Sounds tab, not the path to the file.");
+            ImGui.TextWrapped("Optionally, select channel(s) the trigger can be used in. Select none to use the global filter.");
             ImGui.Separator();
 
             if (ImGui.Button("New Trigger"))
@@ -157,13 +161,14 @@ public class MainWindow : Window, IDisposable
                 Configuration.Triggers.Add(trigger);
                 Configuration.Save();
             }
-            if (ImGui.BeginTable("##Triggers", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+            if (ImGui.BeginTable("##Triggers", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
             {
-                ImGui.TableSetupColumn("Name");
-                ImGui.TableSetupColumn("Phrase");
-                ImGui.TableSetupColumn("Sound");
-                ImGui.TableSetupColumn("Enabled");
-                ImGui.TableSetupColumn("Delete");
+                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 2);
+                ImGui.TableSetupColumn("Phrase", ImGuiTableColumnFlags.WidthStretch, 2);
+                ImGui.TableSetupColumn("Sound", ImGuiTableColumnFlags.WidthStretch, 2);
+                ImGui.TableSetupColumn("Channels", ImGuiTableColumnFlags.WidthStretch, 3);
+                ImGui.TableSetupColumn("Enabled", ImGuiTableColumnFlags.WidthStretch, 1);
+                ImGui.TableSetupColumn("Delete", ImGuiTableColumnFlags.WidthStretch, 1);
                 ImGui.TableHeadersRow();
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
@@ -198,6 +203,32 @@ public class MainWindow : Window, IDisposable
                         if (trigger.AudioIds.Count == 0) trigger.AudioIds.Add(sound);
                         else trigger.AudioIds[0] = sound;
                         Configuration.Save();
+                    }
+
+                    ImGui.TableNextColumn();
+
+                    string allowedChannelsPreview = 
+                        trigger.AllowedChannels.Count > 1 ? $"{trigger.AllowedChannels.First().ToString()} (+{trigger.AllowedChannels.Count} more)" : 
+                        trigger.AllowedChannels.Count == 1 ? trigger.AllowedChannels.First().ToString() : "";
+
+                    if (ImGui.BeginCombo($"##trigger-channels{i}", allowedChannelsPreview))
+                    {
+                        ImGui.Text("Search");
+                        ImGui.SameLine();
+                        ImGui.InputText($"##trigger-channelsSearch{i}", ref Search, 100);
+
+                        var filteredChannels = Enum.GetValues<XivChatType>().OrderBy(chatType => chatType.ToString()).Where(chatType => chatType.ToString().Contains(Search, StringComparison.OrdinalIgnoreCase));
+                        foreach (var channelType in filteredChannels) 
+                        {
+                            if(ImGui.Selectable(channelType.ToString(), trigger.AllowedChannels.Contains(channelType)))
+                            {
+                                if (trigger.AllowedChannels.Contains(channelType)) trigger.AllowedChannels.Remove(channelType);
+                                else trigger.AllowedChannels.Add(channelType);
+                                Configuration.Save();
+                            }
+                        }
+
+                        ImGui.EndCombo();
                     }
 
                     ImGui.TableNextColumn();
