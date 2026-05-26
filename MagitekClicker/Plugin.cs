@@ -11,6 +11,7 @@ using MagitekClicker.Classes;
 using System.Collections.Generic;
 using Dalamud.Game.Chat;
 using System;
+using System.Linq;
 
 namespace MagitekClicker;
 
@@ -29,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     public readonly WindowSystem WindowSystem = new("MagitekClicker");
     private MainWindow MainWindow { get; init; }
 
+    private Random random = new();
 
     public Plugin()
     {
@@ -71,8 +73,9 @@ public sealed class Plugin : IDalamudPlugin
             if (message.Message.ToString().ToLower().Contains(trigger.TriggerPhrases[0].ToLower()))
             {
                 if (trigger.AudioIds.Count == 0) continue;
-                string soundId = trigger.AudioIds[0];
-                foreach(var audio in Configuration.AudioFiles)
+                string soundId = trigger.AudioIds.Count == 1 ? trigger.AudioIds.First() : trigger.AudioIds[random.Next(0, trigger.AudioIds.Count)];
+
+                foreach (var audio in Configuration.AudioFiles)
                 {
                     if(audio.Name == soundId && audio.Path != "")
                     {
