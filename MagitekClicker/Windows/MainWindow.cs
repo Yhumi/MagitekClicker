@@ -66,11 +66,21 @@ public class MainWindow : Window, IDisposable
                 Configuration.Save();
             }
 
-            var volume = Configuration.Volume;
-            if(ImGui.SliderFloat("Volume", ref volume, 0f, 1f))
+            var useXIVSFXVolume = Configuration.UseXIVSFXVolume;
+            if (ImGui.Checkbox("Use XIV SFX Volume?", ref useXIVSFXVolume))
             {
-                Configuration.Volume = volume;
+                Configuration.UseXIVSFXVolume = useXIVSFXVolume;
                 Configuration.Save();
+            }
+
+            if (!Configuration.UseXIVSFXVolume)
+            {
+                var volume = Configuration.Volume;
+                if (ImGui.SliderFloat("Volume", ref volume, 0f, 1f))
+                {
+                    Configuration.Volume = volume;
+                    Configuration.Save();
+                }
             }
 
             ImGui.Separator();
@@ -135,6 +145,14 @@ public class MainWindow : Window, IDisposable
 
                     if (ImGui.Button($"Delete##sound-delete{i}"))
                     {
+                        foreach (var trigger in Configuration.Triggers)
+                        {
+                            if (trigger.AudioIds.Contains(audioFile.Name))
+                            {
+                                trigger.AudioIds.Remove(audioFile.Name);
+                            }
+                        }
+
                         Configuration.AudioFiles.RemoveAt(i);
                         Configuration.Save();
                     }
@@ -215,7 +233,7 @@ public class MainWindow : Window, IDisposable
                         ImGui.SameLine();
                         ImGui.InputText($"##trigger-soundSearch{i}", ref SoundSearch, 100);
 
-                        var filteredSounds = Configuration.AudioFiles.OrderBy(audioFile => audioFile.Name).Where(audioFile => audioFile.Name.ToString().Contains(SoundSearch, StringComparison.OrdinalIgnoreCase));
+                        var filteredSounds = Configuration.AudioFiles.OrderBy(audioFile => audioFile.Name).Where(audioFile => audioFile.Name.ToString().Contains(SoundSearch, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(audioFile.Path));
                         foreach (var audioFile in filteredSounds)
                         {
                             if (ImGui.Selectable(audioFile.Name.ToString(), trigger.AudioIds.Contains(audioFile.Name), ImGuiSelectableFlags.DontClosePopups))

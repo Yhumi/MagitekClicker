@@ -1,63 +1,113 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using NAudio.Wave;
-using System.Threading.Tasks;
-using NAudio.Wave.SampleProviders;
-using Dalamud.IoC;
-using Dalamud.Plugin.Services;
-using Dalamud.Plugin;
+using Dalamud.Utility;
+using MagitekClicker;
 using MagitekClicker.Classes;
+using NAudio.Vorbis;
+using NAudio.Wave;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
 
-public class SoundPlayer : IDisposable
+public static class SoundPlayer
 {
-    public static SoundPlayer Instance { get; } = new();
+    private static readonly IDictionary<string, byte> SoundState = new ConcurrentDictionary<string, byte>();
 
-    private readonly IWavePlayer wavOut;
-    private readonly MixingSampleProvider mixer;
-    private readonly VolumeSampleProvider sampleProvider;
-
-    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-
-    public SoundPlayer()
+    public static bool IsPlaying(string id)
     {
-        wavOut = new WaveOutEvent();
-        mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2));
-        mixer.ReadFully = true;
-        sampleProvider = new VolumeSampleProvider(mixer);
-
-        mixer.MixerInputEnded += OnMixerInputEnded;
-
-        wavOut.Init(sampleProvider);
-        wavOut.Play();
+        return SoundState.ContainsKey(id);
     }
 
-    public void SetVolume(float volume)
+    public static void StopSound(string id)
     {
-        sampleProvider.Volume = volume;
+        SoundState.Remove(id);
     }
 
-    public void PlaySound(string path)
+    public static void StopSoundsWithIdStartingWith(string countdown)
     {
-        try
+        foreach (var s in SoundState.Keys.Where(k => k.StartsWith(countdown)).ToArray())
         {
-            using AudioFileReader sound = new(path);
-            mixer.AddMixerInput((ISampleProvider) sound);
-        }
-        catch (Exception e)
-        {
-            Log.Error(e, "failed to play audio " + path);
+            SoundState.Remove(s);
         }
     }
 
-    public void Dispose()
+    // Copied from PeepingTom plugin, by ascclemens:
+    // https://git.anna.lgbt/ascclemens/PeepingTom/src/commit/3749a6b42154a51397733abb2d3b06a47915bdcc/Peeping%20Tom/TargetWatcher.cs#L162
+    public static void PlaySound(string? path, bool useGameSfxVolume, int volume = 100, string? id = null)
     {
-        GC.SuppressFinalize(this);
+        if (path.IsNullOrEmpty() || !File.Exists(path))
+        {
+            Service.PluginLog.Error($"Could not find audio file: [{path}]");
+            return;
+        }
+
+        var soundDevice = DirectSoundOut.DSDEVID_DefaultPlayback;
+        new Thread(() =>
+        {
+            WaveStream reader;
+            try
+            {
+                if (Util.IsWine() && path.EndsWith(".wav"))
+                {
+                    Service.PluginLog.Debug($"On Linux, reading .wav: {path}");
+                    reader = new WaveFileReader(path);
+                }
+                else
+                {
+                    Service.PluginLog.Debug($"Reading file regularly: {path}");
+                    reader = new MediaFoundationReader(path);
+                }
+            }
+            catch (Exception e)
+            {
+                Service.PluginLog.Error(e, "An error occurred: ");
+                return;
+            }
+
+            using (reader)
+            {
+                using var output = new DirectSoundOut(soundDevice);
+
+                try
+                {
+                    using var channel = new WaveChannel32(reader)
+                    {
+                        Volume = GetVolume(volume, useGameSfxVolume),
+                        PadWithZeroes = false,
+                    };
+                    output.Init(channel);
+                    output.Play();
+                    if (id is not null)
+                    {
+                        SoundState[id] = 1;
+                    }
+
+                    while (output.PlaybackState == PlaybackState.Playing)
+                    {
+                        if (id is not null && !SoundState.ContainsKey(id))
+                        {
+                            output.Stop();
+                        }
+
+                        Thread.Sleep(500);
+                    }
+
+                    if (id is not null)
+                    {
+                        SoundState.Remove(id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Service.PluginLog.Error(ex, "Exception playing sound");
+                }
+            }
+        }).Start();
     }
 
-    private void OnMixerInputEnded(object? sender, SampleProviderEventArgs e)
+    private static float GetVolume(int baseVolume, bool applyGameSfxVolume)
     {
-
+        return (Math.Min(baseVolume, 100) * (applyGameSfxVolume ? GameSettings.GetEffectiveSfxVolume() : 1)) / 100f;
     }
 }
