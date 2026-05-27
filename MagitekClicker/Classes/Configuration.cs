@@ -14,6 +14,7 @@ public class Configuration : IPluginConfiguration
     public int Version { get; set; } = 0;
 
     public bool Enabled { get; set; } = false;
+    public bool UseXIVSFXVolume { get; set; } = false;
     public float Volume { get; set; } = 0.5f;
     public List<AudioFile> AudioFiles = new();
     public List<Trigger> Triggers = new();
@@ -21,6 +22,6 @@ public class Configuration : IPluginConfiguration
 
     public void Save()
     {
-        Plugin.PluginInterface.SavePluginConfig(this);
+        Service.PluginInterface.SavePluginConfig(this);
     }
 }
