@@ -45,7 +45,6 @@ public static class SoundPlayer
         new Thread(() =>
         {
             WaveStream reader;
-            FileStream? fileStream = null;
             try
             {
                 if (Util.IsWine() && path.EndsWith(".wav"))
@@ -65,8 +64,6 @@ public static class SoundPlayer
                     catch (ArgumentException ex) when (ex.Message.Contains("OPUS"))
                     {
                         Service.PluginLog.Debug($"File is OPUS, using OpusWaveStream");
-                        fileStream?.Dispose();
-                        fileStream = null;
                         reader = new OpusWaveStream(path);
                     }
                 }
@@ -79,7 +76,6 @@ public static class SoundPlayer
             catch (Exception e)
             {
                 Service.PluginLog.Error(e, $"Error loading audio file [{path}]: ");
-                fileStream?.Dispose();
                 return;
             }
 
