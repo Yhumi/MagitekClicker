@@ -1,7 +1,6 @@
 using Dalamud.Utility;
 using MagitekClicker;
 using MagitekClicker.Classes;
-using NAudio.Vorbis;
 using NAudio.Wave;
 using System;
 using System.Collections.Concurrent;
@@ -46,12 +45,30 @@ public static class SoundPlayer
         new Thread(() =>
         {
             WaveStream reader;
+            FileStream? fileStream = null;
             try
             {
                 if (Util.IsWine() && path.EndsWith(".wav"))
                 {
                     Service.PluginLog.Debug($"On Linux, reading .wav: {path}");
                     reader = new WaveFileReader(path);
+                }
+                else if (path.EndsWith(".ogg"))
+                {
+                    Service.PluginLog.Debug($"Reading .ogg file: {path}");
+                    try
+                    {
+                        // Try Vorbis first for Vorbis-encoded .ogg files
+                        reader = new VorbisWaveStream(path);
+                        Service.PluginLog.Debug($"Successfully loaded .ogg as Vorbis");
+                    }
+                    catch (ArgumentException ex) when (ex.Message.Contains("OPUS"))
+                    {
+                        Service.PluginLog.Debug($"File is OPUS, using OpusWaveStream");
+                        fileStream?.Dispose();
+                        fileStream = null;
+                        reader = new OpusWaveStream(path);
+                    }
                 }
                 else
                 {
@@ -61,7 +78,8 @@ public static class SoundPlayer
             }
             catch (Exception e)
             {
-                Service.PluginLog.Error(e, "An error occurred: ");
+                Service.PluginLog.Error(e, $"Error loading audio file [{path}]: ");
+                fileStream?.Dispose();
                 return;
             }
 
